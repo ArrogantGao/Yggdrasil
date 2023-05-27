@@ -140,9 +140,9 @@ mkdir ${WORKSPACE}/build && cd ${WORKSPACE}/build
 
 # Accumulate these flags outside CMAKE_FLAGS,
 # they will be added at the end.
-CMAKE_CPP_FLAGS=""
-CMAKE_CXX_FLAGS=""
-CMAKE_C_FLAGS=""
+CMAKE_CPP_FLAGS=()
+CMAKE_CXX_FLAGS=()
+CMAKE_C_FLAGS=()
 
 CMAKE_FLAGS=()
 
@@ -199,7 +199,12 @@ fi
 
 if [[ "${bb_full_target}" != *sanitize* && ( "${target}" == *linux* || "${target}" == *mingw* ) ]]; then
     # https://bugs.llvm.org/show_bug.cgi?id=48221
-    CMAKE_CXX_FLAGS+="-fno-gnu-unique"
+    CMAKE_CXX_FLAGS+=("-fno-gnu-unique")
+fi
+
+# LLVM6 requires `align_alloc`, promise that our `glibc`+`libstdc++` have it.
+if [[ "${LLVM_MAJ_VER}" -ge "16" && "${target}" == *86*-linux-gnu* ]]; then
+    CMAKE_CPP_FLAGS+=("-D_GLIBCXX_HAVE_ALIGNED_ALLOC=1")
 fi
 
 # Install things into $prefix, and make sure it knows we're cross-compiling
@@ -294,7 +299,7 @@ if [[ "${target}" == *apple* ]] || [[ "${target}" == *freebsd* ]]; then
 fi
 
 if [[ "${target}" == *mingw* ]]; then
-    CMAKE_CPP_FLAGS="${CMAKE_CPP_FLAGS} -remap -D__USING_SJLJ_EXCEPTIONS__ -D__CRT__NO_INLINE"
+    CMAKE_CPP_FLAGS+=("-remap -D__USING_SJLJ_EXCEPTIONS__ -D__CRT__NO_INLINE")
     # Windows is case-insensitive and some dependencies take full advantage of that
     echo "BaseTsd.h basetsd.h" >> /opt/${target}/${target}/include/header.gcc
     CMAKE_FLAGS+=(-DCLANG_INCLUDE_TESTS=OFF)
@@ -322,7 +327,7 @@ CMAKE_FLAGS+=(-DCMAKE_C_COMPILER_TARGET=${CMAKE_TARGET})
 CMAKE_FLAGS+=(-DCMAKE_CXX_COMPILER_TARGET=${CMAKE_TARGET})
 CMAKE_FLAGS+=(-DCMAKE_ASM_COMPILER_TARGET=${CMAKE_TARGET})
 
-cmake -GNinja ${LLVM_SRCDIR} ${CMAKE_FLAGS[@]} -DCMAKE_CXX_FLAGS="${CMAKE_CPP_FLAGS} ${CMAKE_CXX_FLAGS}" -DCMAKE_C_FLAGS="${CMAKE_CPP_FLAGS} ${CMAKE_CXX_FLAGS}"
+cmake -GNinja ${LLVM_SRCDIR} ${CMAKE_FLAGS[@]} -DCMAKE_CXX_FLAGS="${CMAKE_CPP_FLAGS[@]} ${CMAKE_CXX_FLAGS[@]}" -DCMAKE_C_FLAGS="${CMAKE_CPP_FLAGS[@]} ${CMAKE_CXX_FLAGS[@]}"
 ninja -j${nproc} -vv
 
 # Install!
