@@ -202,9 +202,10 @@ if [[ "${bb_full_target}" != *sanitize* && ( "${target}" == *linux* || "${target
     CMAKE_CXX_FLAGS+=("-fno-gnu-unique")
 fi
 
-# LLVM6 requires `align_alloc`, promise that our `glibc`+`libstdc++` have it.
+# Do not include benchmarks with LLVM 16, which would require `align_alloc`
+# which isn't available on old glibc systems.
 if [[ "${LLVM_MAJ_VER}" -ge "16" && "${target}" == *86*-linux-gnu* ]]; then
-    CMAKE_CPP_FLAGS+=("-D_GLIBCXX_HAVE_ALIGNED_ALLOC=1")
+    CMAKE_FLAGS+=("-DLLVM_INCLUDE_BENCHMARKS:BOOL=OFF")
 fi
 
 # Install things into $prefix, and make sure it knows we're cross-compiling
