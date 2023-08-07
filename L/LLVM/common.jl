@@ -153,7 +153,12 @@ if [[ "${ASSERTS}" == "1" ]]; then
 fi
 
 # build for our host arch and our GPU targets NVidia and AMD
-TARGETS=(host NVPTX AMDGPU)
+TARGETS=(host NVPTX)
+
+if [[ ("${target}" != *-apple-darwin*)]]; then
+    TARGETS+=(AMDGPU)
+fi
+
 # Add WASM and BPF for LLVM >6
 if [[ "${LLVM_MAJ_VER}" != "6" ]]; then
     TARGETS+=(WebAssembly BPF AVR)
