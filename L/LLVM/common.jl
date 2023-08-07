@@ -155,7 +155,7 @@ fi
 # build for our host arch and our GPU targets NVidia and AMD
 TARGETS=(host NVPTX)
 
-if [[ ("${target}" != *-apple-darwin*)]]; then
+if [[ "${target}" != *-apple-darwin* ]]; then
     TARGETS+=(AMDGPU)
 fi
 
