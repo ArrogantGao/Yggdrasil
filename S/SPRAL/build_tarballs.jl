@@ -3,11 +3,11 @@
 using BinaryBuilder, Pkg
 
 name = "SPRAL"
-version = v"2023.03.29"
+version = v"2023.08.02"
 
 # Collection of sources required to complete build
 sources = [
-    GitSource("https://github.com/ralna/spral.git", "b1d6a7409d41d575bff7106a4e9d9a60b8935c2e")
+    GitSource("https://github.com/ralna/spral.git", "96585df2f2565017e6d8bdacd5ec50014bacd378")
 ]
 
 # Bash recipe for building across all platforms
@@ -42,7 +42,8 @@ make install
 
 # These are the platforms we will build for by default, unless further
 # platforms are passed in on the command line
-platforms = expand_gfortran_versions(supported_platforms())
+platforms = supported_platforms()
+platforms = expand_gfortran_versions(platforms)
 
 # The products that we will ensure are always built
 products = [

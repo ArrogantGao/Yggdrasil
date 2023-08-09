@@ -6,13 +6,13 @@ const YGGDRASIL_DIR = "../.."
 include(joinpath(YGGDRASIL_DIR, "platforms", "mpi.jl"))
 
 name = "AMReX"
-version_string = "23.05"
+version_string = "23.08"
 version = VersionNumber(version_string)
 
 # Collection of sources required to complete build
 sources = [
     ArchiveSource("https://github.com/AMReX-Codes/amrex/releases/download/$(version_string)/amrex-$(version_string).tar.gz",
-                  "a4bf5ad5322e706b9fae46ff52043e2cca5ddba81479647816251e9ab21c0027"),
+                  "a83b7249d65ad8b6ac1881377e5f814b6db8ed8410ea5562b8ae9d4ed1f37c29"),
 ]
 
 # Bash recipe for building across all platforms
@@ -23,7 +23,7 @@ mkdir build
 cd build
 
 # Correct HDF5 compiler wrappers
-perl -pi -e 's+-I/workspace/srcdir/hdf5-1.14.0/src/H5FDsubfiling++' $(which h5pcc)
+perl -pi -e 's+-I/workspace/srcdir/hdf5-1[.]14[.]./src/H5FDsubfiling++' $(which h5pcc)
 
 if [[ "$target" == *-apple-* ]]; then
     if grep -q MPICH_NAME $prefix/include/mpi.h; then
@@ -73,15 +73,20 @@ augment_platform_block = """
 
 # The products that we will ensure are always built
 products = [
-    LibraryProduct("libamrex", :libamrex)
+    LibraryProduct("libamrex_3d", :libamrex)
 ]
 
 # These are the platforms we will build for by default, unless further
 # platforms are passed in on the command line
 platforms = supported_platforms()
+platforms = expand_cxxstring_abis(platforms)
+platforms = expand_gfortran_versions(platforms)
+
+# AMReX requires C++17 and thus requires at least libgfortran5
+platforms = filter(p -> libgfortran_version(p).major ≥ 5, platforms)
+
 # We cannot build with musl since AMReX requires the `fegetexcept` GNU API
 platforms = filter(p -> libc(p) ≠ "musl", platforms)
-platforms = expand_cxxstring_abis(platforms)
 
 platforms, platform_dependencies = MPI.augment_platforms(platforms; MPItrampoline_compat="5.3.0")
 # Avoid platforms where the MPI implementation isn't supported
@@ -91,7 +96,7 @@ platforms = filter(p -> !(p["mpi"] == "openmpi" && arch(p) == "armv6l" && libc(p
 platforms = filter(p -> !(p["mpi"] == "mpitrampoline" && (Sys.iswindows(p) || libc(p) == "musl")), platforms)
 platforms = filter(p -> !(p["mpi"] == "mpitrampoline" && Sys.isfreebsd(p)), platforms)
 
-hdf5_platforms = filter(p -> os(p) ≠ "windows", platforms)
+hdf5_platforms = filter(!Sys.iswindows, platforms)
 
 # Dependencies that must be installed before this package can be built
 dependencies = [
@@ -108,8 +113,7 @@ append!(dependencies, platform_dependencies)
 
 # Build the tarballs, and possibly a `build.jl` as well.
 # - GCC 4 is too old: AMReX requires C++14, and thus at least GCC 5
-# - On Windows, AMReX requires C++17, and at least GCC 8 to provide the <filesystem> header.
-#   How can we require this for Windows only?
+# - AMReX requires C++17, and at least GCC 8 to provide the <filesystem> header
 # - GCC 8.1.0 suffers from an ICE, so we use GCC 9 instead
 build_tarballs(ARGS, name, version, sources, script, platforms, products, dependencies;
                augment_platform_block, julia_compat="1.6", preferred_gcc_version = v"9")

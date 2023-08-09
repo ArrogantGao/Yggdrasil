@@ -15,15 +15,15 @@ const llvm_tags = Dict(
     v"12.0.1" => "980d2f60a8524c5546397db9e8bbb7d6ea56c1b7", # julia-12.0.1-4
     v"13.0.1" => "8a2ae8c8064a0544814c6fac7dd0c4a9aa29a7e6", # julia-13.0.1-3
     v"14.0.6" => "5c82f5309b10fab0adf6a94969e0dddffdb3dbce", # julia-14.0.6-3
-    v"15.0.7" => "3089b0b526eed060bc1c0ed582dabe2a06801226", # julia-15.0.7-5
     v"16.0.2" => "757a1b47d03631dcc84529af9687f51170691e9b", # TODO: make a tag
+    v"15.0.7" => "e010657e399d312a9440732a8a67125ecd0e2298", # julia-15.0.7-7
 )
 
 const buildscript = raw"""
 # We want to exit the program if errors occur.
 set -o errexit
 
-if [[ ("${target}" == x86_64-apple-darwin*) && ("${LLVM_MAJ_VER}" -ge "15") ]]; then
+if [[ ("${target}" == x86_64-apple-darwin*) && ! -z "${LLVM_UPDATE_MAC_SDK}" ]]; then
     # LLVM 15 requires macOS SDK 10.14, see
     # <https://github.com/JuliaPackaging/Yggdrasil/pull/5592#issuecomment-1309525112> and
     # references therein.
@@ -200,6 +200,12 @@ if [ -z "${LLVM_WANT_STATIC}" ]; then
     CMAKE_FLAGS+=(-DLLVM_VERSION_SUFFIX:STRING="jl")
     # Aggressively symbol version (added in LLVM 13.0.1)
     CMAKE_FLAGS+=(-DLLVM_SHLIB_SYMBOL_VERSION:STRING="JL_LLVM_${LLVM_MAJ_VER}.${LLVM_MIN_VER}")
+fi
+
+# We want to build LLVM with EH and RTTI
+if [ ! -z "${LLVM_WANT_EH_RTTI}" ]; then
+    CMAKE_FLAGS+=(-DLLVM_ENABLE_RTTI=ON)
+    CMAKE_FLAGS+=(-DLLVM_ENABLE_EH=ON)
 fi
 
 if [[ "${bb_full_target}" != *sanitize* && ( "${target}" == *linux* || "${target}" == *mingw* ) ]]; then
@@ -517,7 +523,8 @@ rm -vrf {prefix}/lib/objects-Release
 function configure_build(ARGS, version; experimental_platforms=false, assert=false,
                          git_path="https://github.com/JuliaLang/llvm-project.git",
                          git_ver=llvm_tags[version], custom_name=nothing,
-                         custom_version=version, static=false, platform_filter=nothing)
+                         custom_version=version, static=false, platform_filter=nothing,
+                         eh_rtti=false, update_sdk=version >= v"15")
     # Parse out some args
     if "--assert" in ARGS
         assert = true
@@ -577,6 +584,9 @@ function configure_build(ARGS, version; experimental_platforms=false, assert=fal
     if static
         config *= "LLVM_WANT_STATIC=1\n"
     end
+    if eh_rtti
+        config *= "LLVM_WANT_EH_RTTI=1\n"
+    end
     if assert
         config *= "ASSERTS=1\n"
         name = "$(name)_assert"
@@ -590,7 +600,8 @@ function configure_build(ARGS, version; experimental_platforms=false, assert=fal
         Dependency("Zlib_jll"), # for LLD&LTO
         BuildDependency("LLVMCompilerRT_jll"; platforms=filter(p -> sanitize(p)=="memory", platforms)),
     ]
-    if version >= v"15"
+    if update_sdk
+        config *= "LLVM_UPDATE_MAC_SDK=1\n"
         push!(sources,
               ArchiveSource(
                   "https://github.com/phracker/MacOSX-SDKs/releases/download/10.15/MacOSX10.14.sdk.tar.xz",
