@@ -107,12 +107,12 @@ CMAKE_FLAGS=()
 CMAKE_FLAGS+=(-DLLVM_TARGETS_TO_BUILD:STRING=host)
 CMAKE_FLAGS+=(-DLLVM_HOST_TRIPLE=${MACHTYPE})
 CMAKE_FLAGS+=(-DCMAKE_BUILD_TYPE=Release)
-if [[ "${LLVM_MAJ_VER}" -gt "11" ]]; then
+if [[ "${LLVM_MAJ_VER}" -gt "11" && $target != i686* && $target != armv* ]]; then
     CMAKE_FLAGS+=(-DLLVM_ENABLE_PROJECTS='llvm;clang;clang-tools-extra;mlir')
 else
     CMAKE_FLAGS+=(-DLLVM_ENABLE_PROJECTS='llvm;clang;clang-tools-extra')
 fi
-if [[ "${LLVM_MAJ_VER}" -gt "13" ]]; then
+if [[ "${LLVM_MAJ_VER}" -gt "13" && $target != i686* && $target != armv* ]]; then
     CMAKE_FLAGS+=(-DMLIR_BUILD_MLIR_C_DYLIB:BOOL=ON)
 fi
 CMAKE_FLAGS+=(-DCMAKE_CROSSCOMPILING=False)
